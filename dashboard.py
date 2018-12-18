@@ -66,7 +66,7 @@ def callback():
 def dashboard():
     user = session['user']
     is_admin = user['id'] in config['admins']
-    keys = r.table('keys').filter(r.row['owner'] == user['id']).run(get_db())
+    keys = get_db().table('keys', filter=(r.row['owner'] == user['id']))
     return render_template('dashboard.html', name=user['username'], keys=keys, admin=is_admin)
 
 
@@ -86,13 +86,13 @@ def request_key():
             result = 'Please enter a name and reason for your application'
             return render_template('result.html', result=result, success=False)
 
-        r.table('applications').insert({
+        get_db().insert('applications', {
             "owner": user['id'],
             "email": user['email'],
             "name": name,
             "owner_name": f'{user["username"]}#{user["discriminator"]}',
             "reason": reason
-        }).run(get_db())
+        })
         result = 'Application Submitted 👌'
         return render_template('result.html', result=result, success=True)
 
@@ -118,7 +118,7 @@ def create_key():
             result = 'Please fill in all required inputs'
             return render_template('result.html', result=result, success=False)
 
-        r.table('keys').insert({
+        get_db().insert('keys', {
             "id": token,
             "name": name,
             "owner": owner,
@@ -128,7 +128,7 @@ def create_key():
             "usages": {},
             "unlimited": False,
             "ratelimit_reached": 0
-        }).run(get_db())
+        })
         result = 'Key Created 👌'
         return render_template('result.html', result=result, success=True)
 
@@ -141,8 +141,8 @@ def admin():
     if user['id'] not in config['admins']:
         return render_template('gitout.html')
 
-    apps = r.table('applications').run(get_db())
-    keys = r.table('keys').run(get_db())
+    apps = get_db().table('applications')
+    keys = get_db().table('keys')
     return render_template('admin.html', name=user['username'], apps=apps, keys=keys)
 
 
@@ -154,12 +154,12 @@ def approve(key_id):
     if user['id'] not in config['admins']:
         return render_template('gitout.html')
 
-    key = r.table('applications').get(key_id).run(get_db())
+    key = get_db().get('applications', key_id)
     m = hashlib.sha256()
     m.update(key['id'].encode())
     m.update(str(randint(10000, 99999)).encode())
     token = m.hexdigest()
-    r.table('keys').insert({
+    get_db().insert('keys', {
         "id": token,
         "name": key['name'],
         "owner": key['owner'],
@@ -169,8 +169,8 @@ def approve(key_id):
         "usages": {},
         "unlimited": False,
         "ratelimit_reached": 0
-    }).run(get_db())
-    r.table('applications').get(key_id).delete().run(get_db())
+    })
+    get_db().delete('applications', key_id)
     return redirect(url_for('.admin'))
 
 
@@ -182,7 +182,7 @@ def decline(key_id):
     if user['id'] not in config['admins']:
         return render_template('gitout.html')
 
-    r.table('applications').get(key_id).delete().run(get_db())
+    get_db().delete('applications', key_id)
     return redirect(url_for('.admin'))
 
 
@@ -193,7 +193,7 @@ def delete(key_id):
 
     if user['id'] not in config['admins']:
         return render_template('gitout.html')
-    r.table('keys').get(key_id).delete().run(get_db())
+    get_db().delete('keys', key_id)
     return redirect(url_for('.admin'))
 
 
@@ -205,7 +205,7 @@ def unlimited(key_id):
     if user['id'] not in config['admins']:
         return render_template('gitout.html')
 
-    key = r.table('keys').get(key_id).run(get_db())
+    key = get_db().get('keys', key_id)
     unlimited = not key['unlimited']
-    r.table('keys').get(key_id).update({'unlimited': unlimited}).run(get_db())
+    get_db().update('keys', key_id, {'unlimited': unlimited})
     return redirect(url_for('.admin'))

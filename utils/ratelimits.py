@@ -2,7 +2,6 @@ import json
 from datetime import datetime, timedelta
 
 import requests
-import rethinkdb as r
 from flask import request, make_response, jsonify
 
 from utils.db import get_db
@@ -53,7 +52,7 @@ cache = RatelimitCache()
 def ratelimit(func, max_usage=5):
     def wrapper(*args, **kwargs):
         auth = request.headers.get('authorization', None)
-        key = r.table('keys').get(auth).run(get_db())
+        key = get_db().get('keys', auth)
         if key['unlimited']:
             return make_response(
                 (*func(*args, **kwargs), {'X-RateLimit-Limit': 'Unlimited',
@@ -69,7 +68,7 @@ def ratelimit(func, max_usage=5):
                                        'X-RateLimit-Reset': cache.expires_on(key['id'])}))
             else:
                 ratelimit_reached = key.get('ratelimit_reached', 0) + 1
-                r.table('keys').get(auth).update({"ratelimit_reached": ratelimit_reached}).run(get_db())
+                get_db().update('keys', auth, {"ratelimit_reached": ratelimit_reached})
                 if ratelimit_reached % 5 == 0 and 'webhook_url' in config:
                     requests.post(config['webhook_url'],
                                   json={"embeds": [{

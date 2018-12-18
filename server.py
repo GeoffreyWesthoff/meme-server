@@ -4,7 +4,6 @@ import os
 import threading
 import traceback
 
-import rethinkdb as r
 from flask import Flask, render_template, request, g, jsonify
 
 from dashboard import dash
@@ -53,7 +52,7 @@ def init_app():
 
 def require_authorization(func):
     def wrapper(*args, **kwargs):
-        if r.table('keys').get(request.headers.get('authorization', '')).coerce_to('bool').default(False).run(get_db()):
+        if get_db().get('keys', (request.headers.get('authorization', ''))):
             return func(*args, **kwargs)
 
         return jsonify({'status': 401, 'error': 'You are not authorized to access this endpoint'}), 401
