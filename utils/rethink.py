@@ -1,4 +1,5 @@
 import json
+from flask import g
 
 
 class Rethink:
