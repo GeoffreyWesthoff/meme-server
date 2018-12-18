@@ -155,8 +155,11 @@ def approve(key_id):
         return render_template('gitout.html')
 
     key = get_db().get('applications', key_id)
+    if 'id' not in key:
+        key['id'] = key['_id']
+
     m = hashlib.sha256()
-    m.update(key['id'].encode())
+    m.update(str(key['id']).encode())
     m.update(str(randint(10000, 99999)).encode())
     token = m.hexdigest()
     get_db().insert('keys', {
